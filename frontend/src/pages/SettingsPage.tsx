@@ -48,6 +48,7 @@ import { useSettingsModals } from '../hooks/useSettingsModals';
 import { useSettingsMutations } from '../hooks/useSettingsMutations';
 import { useStickyButton } from '../hooks/useStickyButton';
 import { AdminTrustLevel, Settings } from '../types';
+import { overlay } from '../theme/colors';
 import { api, getApiErrorMessage } from '../utils/apiClient';
 import ConsoleManager from '../utils/consoleManager';
 import { SNACKBAR_AUTO_HIDE_DURATION } from '../utils/constants';
@@ -72,6 +73,9 @@ const SettingsPage: React.FC = () => {
         defaultAutoPlay: false,
         defaultAutoLoop: false,
         maxConcurrentDownloads: 3,
+        autoRetryEnabled: false,
+        autoRetryTimes: 3,
+        autoRetryIntervalMinutes: 5,
         language: 'en',
         theme: 'system',
         showThemeButton: true,
@@ -223,7 +227,7 @@ const SettingsPage: React.FC = () => {
                     // Provide a visual cue
                     element.style.transition = 'background-color 0.5s ease';
                     const originalBg = element.style.backgroundColor;
-                    element.style.backgroundColor = 'rgba(255, 235, 59, 0.3)'; // Light yellow highlight
+                    element.style.backgroundColor = overlay.highlightYellow;
                     setTimeout(() => {
                         element.style.backgroundColor = originalBg;
                     }, 2000);
@@ -237,7 +241,10 @@ const SettingsPage: React.FC = () => {
             const newSettings = {
                 ...settingsData,
                 tags: settingsData.tags || [],
-                mountDirectories: settingsData.mountDirectories || ''
+                mountDirectories: settingsData.mountDirectories || '',
+                autoRetryEnabled: settingsData.autoRetryEnabled ?? false,
+                autoRetryTimes: settingsData.autoRetryTimes ?? 3,
+                autoRetryIntervalMinutes: settingsData.autoRetryIntervalMinutes ?? 5,
             };
             setSettings(newSettings);
         }
