@@ -1,3 +1,8 @@
+<p align="center">
+<img width="256" height="256" alt="logo" src="https://github.com/user-attachments/assets/cf900a36-8ed0-41f0-97b1-d330977eaa15" />
+</p>
+
+
 # MyTube
 
 支持 YouTube、Bilibili、Twitch、MissAV 及 [yt-dlp 站点](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md) 的自托管视频下载器与播放器。具备频道订阅、自动下载、本地化存储以及面向外部阅读器的私密 RSS 订阅链接。UI 设计精美，支持收藏集分类管理。内置 Cloudflare Tunnel 支持，无需端口映射即可实现安全远程访问。支持 Docker 一键部署。
@@ -19,9 +24,12 @@
 
 ## 在线演示
 
-🌐 **访问在线演示(只读): [https://mytube-demo.vercel.app](https://mytube-demo.vercel.app)**
+<p align="center">
+ 🌐 访问在线演示(只读): <a href="https://mytube-demo.vercel.app">https://mytube-demo.vercel.app</a>
+ <br />
+ <img width="512" height="320" alt="app-screenshot" src="https://github.com/user-attachments/assets/6889495e-c035-4bbd-9899-977f0f3aa4fb" />
+</p>
 
-[![Watch the video](https://img.youtube.com/vi/0_5ZpgsWTp0/maxresdefault.jpg)](https://www.youtube.com/watch?v=0_5ZpgsWTp0)
 
 ## 功能特点
 
@@ -66,7 +74,7 @@
 
 ## 开始使用
 
-**环境要求：** Node.js **20.x、22.x、23.x、24.x、25.x 或 26.x**，以及 npm v9+。后端依赖 `better-sqlite3`；不受支持的 Node 版本会在 `npm install` 时失败（在 Windows 上可能显示误导性的 `node-gyp` / Visual Studio 错误）。Docker 镜像内置 Node 22。
+**环境要求：** Node.js **20.19+、22.12+、23.x、24.x、25.x 或 26.x**，以及 npm v9+。后端依赖 `better-sqlite3`；不受支持的 Node 版本会在 `npm install` 时失败（在 Windows 上可能显示误导性的 `node-gyp` / Visual Studio 错误）。Docker 镜像内置 Node 22。
 
 有关安装和设置说明，请参阅 [开始使用](documents/zh/getting-started.md)。
 
@@ -82,7 +90,7 @@
 
 ### 后端
 
-- **运行时**: Node.js 20.x–26.x，TypeScript
+- **运行时**: Node.js 20.19+、22.12+ 或 23.x–26.x，TypeScript
 - **框架**: Express.js
 - **数据库**: SQLite with Drizzle ORM
 - **测试**: Vitest
