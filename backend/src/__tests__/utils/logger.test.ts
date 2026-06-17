@@ -36,11 +36,52 @@ describe('Logger', () => {
     });
 
     it('should log error messages', () => {
+        const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
         const testLogger = new Logger(LogLevel.INFO);
         testLogger.error('error message');
-        expect(consoleSpy.error).toHaveBeenCalled();
-        const [prefix, message] = consoleSpy.error.mock.calls[0];
-        expect(prefix).toContain('[ERROR]');
-        expect(message).toBe('error message');
+        expect(stderrSpy).toHaveBeenCalled();
+        const output = stderrSpy.mock.calls[0][0] as string;
+        expect(output).toContain('[ERROR]');
+        expect(output).toContain('error message');
+        stderrSpy.mockRestore();
+    });
+
+    it('should redact sensitive structured fields in info logs', () => {
+        const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+        try {
+            const testLogger = new Logger(LogLevel.INFO);
+
+            testLogger.info('source log', {
+                author: 'Secret Author',
+                channelUrl: 'https://youtube.com/@secret-author',
+                platform: 'YouTube',
+            });
+
+            const output = stdoutSpy.mock.calls[0][0] as string;
+            expect(output).toContain('"author":"[REDACTED]"');
+            expect(output).not.toContain('Secret Author');
+            expect(output).toContain('"channelUrl":"https://youtube.com/@secret-author"');
+        } finally {
+            stdoutSpy.mockRestore();
+        }
+    });
+
+    it('should redact sensitive structured fields in warn logs', () => {
+        const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+        const testLogger = new Logger(LogLevel.WARN);
+
+        testLogger.warn('warning message', {
+            author: 'Secret Author',
+            authorUrl: 'https://example.com/secret-author',
+        });
+
+        expect(stderrSpy).toHaveBeenCalled();
+        const output = stderrSpy.mock.calls[0][0] as string;
+        expect(output).toContain('[WARN]');
+        expect(output).toContain('warning message');
+        expect(output).toContain('"author":"[REDACTED]"');
+        expect(output).toContain('"authorUrl":"https://example.com/secret-author"');
+        expect(output).not.toContain('Secret Author');
+        stderrSpy.mockRestore();
     });
 });

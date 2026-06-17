@@ -10,6 +10,22 @@ export enum LogLevel {
   ERROR = 3,
 }
 
+const SENSITIVE_FIELD_NAMES = new Set([
+  "author",
+  "videoauthor",
+  "uploader",
+  "email",
+  "username",
+  "password",
+  "token",
+  "secret",
+  "apikey",
+]);
+
+function isSensitiveField(key: string): boolean {
+  return SENSITIVE_FIELD_NAMES.has(key.toLowerCase().replace(/[-_]/g, ""));
+}
+
 export class Logger {
   private level: LogLevel;
 
@@ -80,12 +96,13 @@ export class Logger {
               for (const key in obj) {
                 if (Object.prototype.hasOwnProperty.call(obj, key)) {
                   const value = obj[key];
-                  result[key] =
-                    typeof value === "string"
-                      ? redactSensitive(sanitizeLogMessage(value))
-                      : typeof value === "object" && value !== null
-                      ? sanitizeObject(value)
-                      : value;
+                  result[key] = isSensitiveField(key)
+                    ? "[REDACTED]"
+                    : typeof value === "string"
+                    ? redactSensitive(sanitizeLogMessage(value))
+                    : typeof value === "object" && value !== null
+                    ? sanitizeObject(value)
+                    : value;
                 }
               }
               return result;
@@ -146,9 +163,14 @@ export class Logger {
    */
   warn(message: string, ...args: any[]): void {
     if (this.level <= LogLevel.WARN) {
+      const timestamp = this.formatTimestamp();
       const sanitizedMessage = redactSensitive(sanitizeLogMessage(message));
       const sanitizedArgs = this.sanitizeArgs(args);
-      console.warn(`[${this.formatTimestamp()}] [WARN]`, sanitizedMessage, ...sanitizedArgs);
+      const serializedArgs = sanitizedArgs.map((arg) => this.formatArg(arg));
+      const line = [`[${timestamp}] [WARN]`, sanitizedMessage, ...serializedArgs]
+        .join(" ")
+        .trim();
+      process.stderr.write(`${line}\n`);
     }
   }
 
@@ -163,21 +185,22 @@ export class Logger {
       const timestamp = this.formatTimestamp();
       const sanitizedMessage = redactSensitive(sanitizeLogMessage(message));
       const sanitizedArgs = this.sanitizeArgs(args);
+      const lineParts: string[] = [`[${timestamp}] [ERROR]`, sanitizedMessage];
       if (error instanceof Error) {
         const safeError = {
           name: sanitizeLogMessage(error.name),
           message: redactSensitive(sanitizeLogMessage(error.message)),
         };
-        console.error(`[${timestamp}] [ERROR]`, sanitizedMessage, safeError, ...sanitizedArgs);
+        lineParts.push(this.formatArg(safeError));
       } else if (error !== undefined) {
         const sanitizedError =
           typeof error === "string"
             ? redactSensitive(sanitizeLogMessage(error))
             : this.sanitizeArgs([error])[0];
-        console.error(`[${timestamp}] [ERROR]`, sanitizedMessage, sanitizedError, ...sanitizedArgs);
-      } else {
-        console.error(`[${timestamp}] [ERROR]`, sanitizedMessage, ...sanitizedArgs);
+        lineParts.push(this.formatArg(sanitizedError));
       }
+      lineParts.push(...sanitizedArgs.map((arg) => this.formatArg(arg)));
+      process.stderr.write(`${lineParts.join(" ").trim()}\n`);
     }
   }
 }

@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
+import { resolveFilenameNamingConfig } from "../filenameTemplate/config";
 import {
   AuthorOrganizationMode,
   resolveAuthorOrganizationMode,
@@ -33,6 +34,16 @@ const replaceInvalidFilesystemCharacters = (value: string): string => {
 
 const AUTHOR_AUTO_COLLECTION_ORIGIN: CollectionOrigin = "author_auto";
 const MANUAL_COLLECTION_ORIGIN: CollectionOrigin = "manual";
+
+function isLegacyFilenameNamingValue(value?: string): boolean {
+  if (value === "template" || value === "legacy") {
+    return value === "legacy";
+  }
+
+  return resolveFilenameNamingConfig({
+    downloadFilenamePresetId: value,
+  }).mode === "legacy";
+}
 
 function getCollectionName(collection: Collection): string {
   return collection.name || collection.title;
@@ -117,9 +128,9 @@ export function backfillLegacyCollectionOrigins(): LegacyCollectionOriginBackfil
         origin: AUTHOR_AUTO_COLLECTION_ORIGIN,
       });
       results.backfilledAuthorAuto += 1;
-      logger.info(
-        `Backfilled legacy author collection origin for "${getCollectionName(collection)}"`
-      );
+      logger.info("Backfilled legacy author collection origin", {
+        author: getCollectionName(collection),
+      });
       continue;
     }
 
@@ -230,9 +241,9 @@ export function findOrCreateAuthorCollection(
   // Validate and sanitize the author name
   const validatedName = validateCollectionName(authorName);
   if (!validatedName) {
-    logger.warn(
-      `Invalid author name for collection: "${authorName}", skipping collection creation`
-    );
+    logger.warn("Invalid author name for collection, skipping collection creation", {
+      author: authorName,
+    });
     return null;
   }
 
@@ -266,22 +277,23 @@ export function findOrCreateAuthorCollection(
     };
 
     saveCollection(newCollection);
-    logger.info(`Created new collection for author: ${uniqueName}`);
+    logger.info("Created new collection for author", { author: uniqueName });
     return newCollection;
   } catch (error) {
     // If save fails, it might be due to a race condition
     // Try to get the collection one more time
     collection = getAuthorAutoCollectionByName(uniqueName);
     if (collection) {
-      logger.info(
-        `Collection "${uniqueName}" was created by another process, using existing collection`
-      );
+      logger.info("Collection was created by another process, using existing collection", {
+        author: uniqueName,
+      });
       return collection;
     }
 
     logger.error(
-      `Error creating collection for author "${uniqueName}":`,
-      error instanceof Error ? error : new Error(String(error))
+      "Error creating collection for author",
+      error instanceof Error ? error : new Error(String(error)),
+      { author: uniqueName }
     );
     return null;
   }
@@ -289,14 +301,14 @@ export function findOrCreateAuthorCollection(
 
 /**
  * Adds a video to an author's collection if the setting is enabled.
- * When downloadFilenamePresetId is not 'legacy', the file is NOT moved —
+ * When filename naming is not legacy, the file is NOT moved —
  * only the collection membership record is created, because the template
  * already owns the directory structure.
  *
  * @param videoId - The ID of the video to add
  * @param authorName - The author name
  * @param saveAuthorFilesToCollection - Whether to save to author collection
- * @param downloadFilenamePresetId - Current naming preset; non-legacy skips file moves
+ * @param downloadFilenamePresetId - Current naming mode/preset; non-legacy skips file moves
  * @returns The collection the video was added to, or null
  */
 export function addVideoToAuthorCollection(
@@ -332,30 +344,32 @@ export function addVideoToAuthorCollection(
     const collection = findOrCreateAuthorCollection(authorName);
 
     if (!collection) {
-      logger.warn(
-        `Failed to find or create collection for author: ${authorName}`
-      );
+      logger.warn("Failed to find or create collection for author", {
+        author: authorName,
+      });
       return null;
     }
 
     // For non-legacy naming modes the template already owns the directory structure.
     // Only add the membership record; do not move files.
-    const isLegacy = !downloadFilenamePresetId || downloadFilenamePresetId === "legacy";
+    const isLegacy = isLegacyFilenameNamingValue(downloadFilenamePresetId);
     const updatedCollection = linkVideoToCollection(collection.id, videoId, {
       moveFiles: options?.moveFiles ?? isLegacy,
     });
 
     if (updatedCollection) {
-      logger.info(
-        `Added video to author collection: ${authorName}${
-          (options?.moveFiles ?? isLegacy) ? " (with file move)" : " (membership only)"
-        }`
-      );
+      const moveLabel = (options?.moveFiles ?? isLegacy)
+        ? "with file move"
+        : "membership only";
+      logger.info(`Added video to author collection (${moveLabel})`, {
+        author: authorName,
+      });
       return updatedCollection;
     } else {
-      logger.warn(
-        `Failed to add video ${videoId} to collection for author: ${authorName}`
-      );
+      logger.warn("Failed to add video to collection for author", {
+        author: authorName,
+        videoId,
+      });
       return null;
     }
   } catch (error) {
@@ -393,7 +407,9 @@ function moveVideoFilesToAuthorFolder(
   }
 
   updateVideo(videoId, updates);
-  logger.info(`Moved video files into author folder: ${validatedAuthorName}`);
+  logger.info("Moved video files into author folder", {
+    author: validatedAuthorName,
+  });
   return true;
 }
 
@@ -533,8 +549,7 @@ export function organizeVideoByAuthor(
     return null;
   }
 
-  const isLegacy =
-    !downloadFilenamePresetId || downloadFilenamePresetId === "legacy";
+  const isLegacy = isLegacyFilenameNamingValue(downloadFilenamePresetId);
   const shouldMoveFiles = options?.moveFiles ?? isLegacy;
 
   if (usesAuthorCollectionLinking(normalizedMode)) {
